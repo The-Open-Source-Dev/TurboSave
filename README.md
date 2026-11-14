@@ -80,3 +80,7 @@ See the [Android build instructions](android/README.md) for the APK build and lo
 [Windows contribution guide](desktop/CONTRIBUTING.md) · [Android contribution guide](android/CONTRIBUTING.md) · [GPL-3.0-only license](LICENSE)
 
 Third-party components keep their own licenses and notices in each platform folder.
+
+### Acknowledgments
+
+Thanks to everyone who contributes code, tests the apps, or reports issues. TurboSave’s maintainer used OpenAI’s ChatGPT and Codex to help develop features, debug issues, test builds, and write documentation. [ChatGPT](https://chatgpt.com/overview/) · [OpenAI Codex](https://openai.com/codex/)
