@@ -30,7 +30,7 @@ export function desktopRelease(releases,current){
   }
   return best||{kind:'app',current,available:false,message:'No newer installable Windows release is published yet. Source-only and Android releases are excluded.'};
 }
-export async function githubBytes(value,{limit=2_000_000,signal=AbortSignal.timeout(20_000)}={}){
+export async function githubBytes(value,{limit=2_000_000,signal=AbortSignal.timeout(20_000),onProgress}={}){
   for(let hop=0;hop<5;hop++){
     const parsed=new URL(value);if(parsed.protocol!=='https:'||!hosts.has(parsed.hostname)||parsed.username||parsed.password||parsed.port)throw Error('Update host is not trusted.');
     signal.throwIfAborted();let onAbort;
@@ -40,8 +40,9 @@ export async function githubBytes(value,{limit=2_000_000,signal=AbortSignal.time
       const request=https.request(target.url,{signal,headers:{'User-Agent':'TurboSave-Desktop','Accept':parsed.hostname==='api.github.com'?'application/vnd.github+json':'application/octet-stream'},lookup(_host,options,callback){options?.all?callback(null,target.addresses):callback(null,target.addresses[0].address,target.addresses[0].family);}},response=>{
         response.on('error',reject);if([301,302,303,307,308].includes(response.statusCode)&&response.headers.location){response.destroy();resolve({redirect:new URL(response.headers.location,parsed).href});return;}
         if(response.statusCode!==200){response.destroy();reject(Error(`Update service returned HTTP ${response.statusCode}. Check the repository, connection or GitHub rate limit.`));return;}
-        if(Number(response.headers['content-length'])>limit){response.destroy();reject(Error('Update response is too large.'));return;}
-        let size=0;const chunks=[];response.on('data',chunk=>{size+=chunk.length;if(size>limit){response.destroy();reject(Error('Update response is too large.'));}else chunks.push(chunk);});
+        const total=Number(response.headers['content-length']);
+        if(total>limit){response.destroy();reject(Error('Update response is too large.'));return;}
+        let size=0;const chunks=[];response.on('data',chunk=>{size+=chunk.length;if(size>limit){response.destroy();reject(Error('Update response is too large.'));}else{chunks.push(chunk);onProgress?.(size,total);}});
         response.on('end',()=>resolve({bytes:Buffer.concat(chunks)}));response.on('aborted',()=>reject(Error('Update download was interrupted.')));
       });request.on('error',reject);request.end();
     });if(result.bytes)return result.bytes;value=result.redirect;
@@ -110,7 +111,21 @@ export class UpdateService{
         current=kind;
         engine.toolStatus=`Downloading and verifying ${kind} ${record.version}…`;
         engine.changed();
-        const bytes=await this.read(record.url,{limit:kind==='yt-dlp'?80_000_000:300_000_000,signal:AbortSignal.timeout(300_000)});
+        const label=`${kind} ${record.version}`;
+        let lastUpdate=0;
+        const bytes=await this.read(record.url,{
+          limit:kind==='yt-dlp'?80_000_000:300_000_000,
+          signal:AbortSignal.timeout(900_000),
+          onProgress(received,total){
+            if(Date.now()-lastUpdate<1_000)return;
+            lastUpdate=Date.now();
+            const amount=total>0?`${Math.min(100,Math.floor(received/total*100))}%`:`${(received/1e6).toFixed(1)} MB`;
+            engine.toolStatus=`Downloading ${label} · ${amount}`;
+            engine.changed();
+          }
+        });
+        engine.toolStatus=`Verifying ${label}…`;
+        engine.changed();
         if(kind==='yt-dlp'){
           if(bytes.toString('ascii',0,2)!=='MZ')throw Error('Invalid Windows downloader.');
           await engine.installDownloader(bytes,record.version,record.sha256);
