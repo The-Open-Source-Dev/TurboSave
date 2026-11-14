@@ -5,13 +5,14 @@
 <p align="center">Paste a link, choose a quality, and save videos for offline playback. TurboSave runs on Android and Windows without a TurboSave account.</p>
 
 <p align="center">
+  <a href="https://github.com/chanthupaa/TurboSave/releases/tag/desktop-v0.8.0-beta.6">Download for Windows</a> ·
   <a href="https://github.com/chanthupaa/TurboSave/releases">Releases</a> ·
   <a href="android/">Android source</a> ·
   <a href="desktop/">Windows source</a> ·
   <a href="https://github.com/chanthupaa/TurboSave/issues">Report an issue</a>
 </p>
 
-> **Installation status:** GitHub currently offers source downloads for Android and Windows. The latest source is on `main`. The tagged prereleases are earlier snapshots and have no APK or Windows executable attached. See the [Android release checklist](android/RELEASE_READINESS.md) and [Windows dependency-source review](desktop/DEPENDENCY_SOURCES.md) for the remaining work.
+> **Windows 10/11 x64:** The [beta.6 release](https://github.com/chanthupaa/TurboSave/releases/tag/desktop-v0.8.0-beta.6) includes an unsigned installer and portable executable. Connect to the internet on first launch so TurboSave can set up its download tools. Android is available as source. See the [Android release checklist](android/RELEASE_READINESS.md).
 
 ## What you can do
 
@@ -30,10 +31,10 @@ These are **UI previews rendered from the checked-in source** with empty or exam
 
 | | Android | Windows |
 | --- | --- | --- |
-| Current source | [1.5.3+13](android/) | [0.8.0-beta.5](desktop/) |
+| Current source | [1.5.3+13](android/) | [0.8.0-beta.6](desktop/) |
 | Main flow | Share or paste a link, review quality, save to the phone | Paste a link, choose media and destination, follow progress |
 | More tools | Activity and local media library | Batch downloads, YouTube playlist selection, history, pause and resume |
-| Tagged source snapshot | [Android 1.5.3 prerelease](https://github.com/chanthupaa/TurboSave/releases/tag/android-v1.5.3-source) | [Windows beta.5 prerelease](https://github.com/chanthupaa/TurboSave/releases/tag/desktop-v0.8.0-beta.5-source) |
+| GitHub release | [Android 1.5.3 source prerelease](https://github.com/chanthupaa/TurboSave/releases/tag/android-v1.5.3-source) | [Windows beta.6 installer and portable build](https://github.com/chanthupaa/TurboSave/releases/tag/desktop-v0.8.0-beta.6) |
 | Build guide | [Android README](android/README.md) | [Windows build guide](desktop/BUILD_GUIDE.md) |
 
 Available qualities and sites depend on the source. DRM, sign-in requirements and source restrictions still apply. TurboSave does not bypass them. The separate [Web project](https://github.com/chanthupaa/turbosave-web) is maintained outside this repository.
