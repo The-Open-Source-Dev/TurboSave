@@ -1,81 +1,82 @@
-<p align="center"><img src="docs/images/turbosave-cover.png" alt="TurboSave. Save videos. Watch offline. Free and open source for Android and Windows."></p>
+# TurboSave
 
-<h1 align="center">TurboSave</h1>
+<p align="center"><img src="docs/images/turbosave-preview.gif" width="1120" alt="TurboSave for Windows and Android. Animated preview of the desktop download screen and Android home screen."></p>
 
-<p align="center">Paste a link, choose a quality, and save videos for offline playback. TurboSave runs on Android and Windows without a TurboSave account.</p>
+**Save videos and audio for offline playback.** Paste a link, pick a format and quality, and save the file on your device. TurboSave is free and open source. No TurboSave account required.
 
-<p align="center">
-  <a href="https://github.com/chanthupaa/TurboSave/releases/tag/desktop-v0.8.0-beta.6">Download for Windows</a> ·
-  <a href="https://github.com/chanthupaa/TurboSave/releases">Releases</a> ·
-  <a href="android/">Android source</a> ·
-  <a href="desktop/">Windows source</a> ·
-  <a href="https://github.com/chanthupaa/TurboSave/issues">Report an issue</a>
-</p>
+**[Download for Windows](https://github.com/chanthupaa/TurboSave/releases/download/desktop-v0.8.0-beta.6/TurboSave-Desktop-0.8.0-beta.6-setup.exe)** · [Portable Windows app](https://github.com/chanthupaa/TurboSave/releases/download/desktop-v0.8.0-beta.6/TurboSave-Desktop-0.8.0-beta.6-portable.exe) · [Android source](android/) · [All releases](https://github.com/chanthupaa/TurboSave/releases)
 
-> **Windows 10/11 x64:** The [beta.6 release](https://github.com/chanthupaa/TurboSave/releases/tag/desktop-v0.8.0-beta.6) includes an unsigned installer and portable executable. Connect to the internet on first launch so TurboSave can set up its download tools. Android is available as source. See the [Android release checklist](android/RELEASE_READINESS.md).
+## Get TurboSave
+
+| Platform | Version | What’s available |
+| --- | --- | --- |
+| **Windows 10/11 x64** | `0.8.0-beta.6` | [Installer, portable app, matching source and SHA-256 checksums](https://github.com/chanthupaa/TurboSave/releases/tag/desktop-v0.8.0-beta.6) |
+| **Android** | `1.5.3+13` | [Source and build instructions](android/README.md) · [Release readiness](android/RELEASE_READINESS.md) |
+
+The Windows beta is unsigned. On first launch, connect to the internet so TurboSave can fetch and verify its download tools. The Android release currently offers source code only.
 
 ## What you can do
 
-- **Android:** Share or paste a video link, review available formats, and open saved media from your local library.
-- **Windows:** Pick a folder, queue a batch, or select videos from a public YouTube playlist. The latest beta source adds a filename warning and an optional visual duplicate check that samples short sections before you start the full download.
-
-## See the apps
-
-| Windows desktop | Android phone |
-| --- | --- |
-| <img src="docs/images/windows-source-ui.png" alt="TurboSave Windows new download screen showing a save destination, link input and format search" width="680"> | <img src="docs/images/android-source-ui.png" alt="TurboSave Android home screen showing link entry and the Home, Activity, Library and Settings navigation" width="280"> |
-
-These are **UI previews rendered from the checked-in source** with empty or example data. They do not claim a successful download or a packaged-app test.
-
-## Pick your platform
-
-| | Android | Windows |
-| --- | --- | --- |
-| Current source | [1.5.3+13](android/) | [0.8.0-beta.6](desktop/) |
-| Main flow | Share or paste a link, review quality, save to the phone | Paste a link, choose media and destination, follow progress |
-| More tools | Activity and local media library | Batch downloads, YouTube playlist selection, history, pause and resume |
-| GitHub release | [Android 1.5.3 source prerelease](https://github.com/chanthupaa/TurboSave/releases/tag/android-v1.5.3-source) | [Windows beta.6 installer and portable build](https://github.com/chanthupaa/TurboSave/releases/tag/desktop-v0.8.0-beta.6) |
-| Build guide | [Android README](android/README.md) | [Windows build guide](desktop/BUILD_GUIDE.md) |
-
-Available qualities and sites depend on the source. DRM, sign-in requirements and source restrictions still apply. TurboSave does not bypass them. The separate [Web project](https://github.com/chanthupaa/turbosave-web) is maintained outside this repository.
-
-## Build from source
-
-Clone the repository, then use the instructions for your platform. Generated builds, recovery archives, local signing material and private user data are excluded from Git.
+- **Windows** — Choose a save folder per download, queue multiple links, or preview a public YouTube playlist and pick the videos you want. Pause and resume supported downloads. Check for possible duplicate videos before starting the full download.
+- **Android** — Share a link from another app or paste it into TurboSave. Review available formats and quality, then find your saved media in the local library.
 
 <details>
-<summary><strong>Android</strong> · Flutter and Android SDK</summary>
+<summary>View full-size app screenshots</summary>
 
-From `android/`:
+**Windows**
 
-```powershell
-flutter pub get
-flutter analyze --no-pub lib test
-flutter test --no-pub
-```
+![TurboSave Windows download screen with save destination, link input and format search](docs/images/windows-source-ui.png)
 
-The APK build needs local signing configuration. See the [Android README](android/README.md) and [release readiness](android/RELEASE_READINESS.md). Never commit a signing key.
+**Android**
+
+<img src="docs/images/android-source-ui.png" alt="TurboSave Android home screen with link input and Library tab" width="280">
+
+These previews show example data.
 
 </details>
 
-<details>
-<summary><strong>Windows</strong> · Node.js, Electron, yt-dlp and FFmpeg</summary>
+Available formats and qualities depend on the source. Sign-in, DRM and site restrictions can affect availability. Save only media you have permission to download. [TurboSave Web](https://github.com/chanthupaa/turbosave-web) is maintained separately.
 
-From `desktop/`:
+## Build from source
+
+```sh
+git clone https://github.com/chanthupaa/TurboSave.git
+cd TurboSave
+```
+
+<details>
+<summary>Windows build · Node.js 24 and Electron</summary>
 
 ```powershell
+cd desktop
 npm ci
 npm run tools:prepare
 npm test
 npm run build
 ```
 
-See the [build guide](desktop/BUILD_GUIDE.md) and [dependency-source review](desktop/DEPENDENCY_SOURCES.md) before distributing the bundled installer.
+See the [Windows build guide](desktop/BUILD_GUIDE.md) and [dependency source review](desktop/DEPENDENCY_SOURCES.md).
 
 </details>
 
-## Help improve TurboSave
+<details>
+<summary>Android build · Flutter and Android SDK</summary>
 
-For a bug, [open an issue](https://github.com/chanthupaa/TurboSave/issues) with the app, version, OS and reproduction steps. Remove private URLs, usernames, paths, cookies and credentials. Security reports belong in a private channel; see [SECURITY.md](SECURITY.md). Contributions are welcome through the [Android](android/CONTRIBUTING.md) and [Windows](desktop/CONTRIBUTING.md) guides.
+```powershell
+cd android
+flutter pub get
+flutter analyze --no-pub lib test
+flutter test --no-pub
+```
 
-TurboSave's original application code is [GPL-3.0-only](LICENSE). Third-party components keep their own licenses and notices in each platform folder. Use TurboSave only for media you have permission to save.
+See the [Android build instructions](android/README.md) for the APK build and local signing setup.
+
+</details>
+
+## Contributing
+
+[Report a bug](https://github.com/chanthupaa/TurboSave/issues) with the platform, version, and steps to reproduce it. Remove private links and local file paths from examples. Use [private security reporting](SECURITY.md) for vulnerabilities.
+
+[Windows contribution guide](desktop/CONTRIBUTING.md) · [Android contribution guide](android/CONTRIBUTING.md) · [GPL-3.0-only license](LICENSE)
+
+Third-party components keep their own licenses and notices in each platform folder.
