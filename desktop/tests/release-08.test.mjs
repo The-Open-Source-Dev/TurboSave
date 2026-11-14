@@ -47,6 +47,11 @@ test('failed playlist entries can retry even after working history was cleared',
  await engine.playlists.retryEntry('g','1');assert.equal(engine.playlists.groups[0].entries[0].status,'pending');engine.playlists.feed();assert.equal(engine.jobs[0].needsRefresh,true);assert.notEqual(engine.jobs[0].id,'cleared');await engine.close();
 });
 test('repair covers a missing FFprobe pair, and interrupted tool installation never activates it',async()=>{
- const {engine}=await fixture();engine.versions={'yt-dlp':'2026.10.26',ffmpeg:'ffmpeg version 9.0.2',ffprobe:'Not available',node:'v24.22.1'};const updates=new UpdateService({engine,appVersion:'0.8.0-beta.1'}),calls=[];updates.installTool=async(kind,options)=>{calls.push([kind,options.force]);engine.versions.ffprobe='ffprobe version 9.0.2';};await updates.repair();assert.deepEqual(calls,[['ffmpeg',true]]);assert.equal(engine.ready,true);
+ const {engine}=await fixture();engine.versions={'yt-dlp':'2026.10.26',ffmpeg:'ffmpeg version 9.0.2',ffprobe:'Not available',node:'v24.22.1'};
+ const calls=[],install=engine.toolStore.install.bind(engine.toolStore);
+ const updates=new UpdateService({engine,read:async()=>Buffer.from('fixture')});
+ engine.toolStore.install=async(kind,_bytes,{version})=>{calls.push([kind,version]);engine.versions.ffprobe='ffprobe version 9.0.2';};
+ await updates.repair();assert.deepEqual(calls,[['ffmpeg','9.0.2']]);assert.equal(engine.ready,true);
+ engine.toolStore.install=install;
  const bytes=Buffer.from('test archive'),sha256=createHash('sha256').update(bytes).digest('hex');engine.run=async()=>{throw Error('Interrupted extraction');};await assert.rejects(()=>engine.toolStore.install('ffmpeg',bytes,{version:'9.0.2',sha256}),/Interrupted/);assert.equal(engine.toolStore.records.ffmpeg,undefined);assert.equal(engine.tool('ffmpeg'),path.join(engine.toolsDir,'bin','ffmpeg.exe'));await engine.close();
 });
