@@ -24,7 +24,10 @@ const reliabilitySmoke=process.argv.includes('--reliability-self-test');
 const experienceSmoke=process.argv.includes('--experience-self-test');
 const betaSmoke=process.argv.includes('--beta-self-test');
 const youtubeSmoke=process.argv.includes('--youtube-self-test');
-if(smoke||workflowTest||duplicateSmoke||ipcSmoke||detailsSmoke||reliabilitySmoke||experienceSmoke||betaSmoke||youtubeSmoke)app.setPath('userData',path.join(os.tmpdir(),`turbosave-${youtubeSmoke?'youtube-test':betaSmoke?'beta-test':experienceSmoke?'experience-test':reliabilitySmoke?'reliability-test':detailsSmoke?'details-test':ipcSmoke?'ipc-test':duplicateSmoke?'duplicate-test':smoke?'smoke':'workflow'}-${randomUUID()}`));
+const setupSmoke=process.argv.includes('--setup-self-test');
+const setupProfile=process.env.TURBOSAVE_SETUP_TEST_PROFILE;
+if(setupSmoke)app.setPath('userData',path.join(os.tmpdir(),/^turbosave-setup-test-[a-f0-9-]{36}$/i.test(setupProfile||'')?setupProfile:`turbosave-setup-test-${randomUUID()}`));
+else if(smoke||workflowTest||duplicateSmoke||ipcSmoke||detailsSmoke||reliabilitySmoke||experienceSmoke||betaSmoke||youtubeSmoke)app.setPath('userData',path.join(os.tmpdir(),`turbosave-${youtubeSmoke?'youtube-test':betaSmoke?'beta-test':experienceSmoke?'experience-test':reliabilitySmoke?'reliability-test':detailsSmoke?'details-test':ipcSmoke?'ipc-test':duplicateSmoke?'duplicate-test':smoke?'smoke':'workflow'}-${randomUUID()}`));
 if(!app.requestSingleInstanceLock())app.exit(0);
 let window,engine,updates,tray,quitting=false,bootError=null;const previousStatuses=new Map(),chosenFolders=new Set();
 const uiPath=path.join(root,'ui','index.html'),uiUrl=pathToFileURL(uiPath).href;
@@ -48,7 +51,7 @@ if(windowsBranding&&app.isPackaged&&!portable)for(const shortcut of [path.join(a
   try{const current=shell.readShortcutLink(shortcut);if(path.resolve(current.target).toLowerCase()===path.resolve(process.execPath).toLowerCase())shell.writeShortcutLink(shortcut,'update',{icon:taskbarIconPath,iconIndex:0,appUserModelId:APP_ID});}catch{}
 }
 engine=new LocalEngine({toolsDir:app.isPackaged?path.join(process.resourcesPath,'tools'):path.join(root,'vendor'),
-  stateDir:app.getPath('userData'),downloadsDir:smoke||duplicateSmoke||ipcSmoke||detailsSmoke||reliabilitySmoke||experienceSmoke||betaSmoke||youtubeSmoke?path.join(app.getPath('userData'),'downloads'):path.join(app.getPath('downloads'),'TurboSave')});
+  stateDir:app.getPath('userData'),downloadsDir:setupSmoke||smoke||duplicateSmoke||ipcSmoke||detailsSmoke||reliabilitySmoke||experienceSmoke||betaSmoke||youtubeSmoke?path.join(app.getPath('userData'),'downloads'):path.join(app.getPath('downloads'),'TurboSave')});
 const firefoxRoot=youtubeSmoke?path.join(app.getPath('userData'),'firefox-fixture'):path.join(app.getPath('appData'),'Mozilla','Firefox');
 const sessionCrypto={available:()=>process.platform==='win32'?safeStorage.isAsyncEncryptionAvailable():Promise.resolve(false),encrypt:value=>safeStorage.encryptStringAsync(value),decrypt:async bytes=>(await safeStorage.decryptStringAsync(bytes)).result};
 engine.youtube=new YouTubeSession({stateDir:engine.stateDir,crypto:sessionCrypto,onChange:()=>engine.changed(),readBrowser:async profile=>{
@@ -149,14 +152,30 @@ handle('folder:open',async(directory)=>{const allowed=[engine.downloadsDir,...ch
 handle('file:reveal',async id=>{const job=engine.jobs.find(j=>j.id===id&&['completed','skipped'].includes(j.status));if(!job?.filePath||!(await stat(job.filePath).catch(()=>null)))throw new Error('This file was moved or removed.');shell.showItemInFolder(job.filePath);});
 handle('project:link',async name=>{const urls={ytdlp:'https://github.com/yt-dlp/yt-dlp',ffmpeg:'https://ffmpeg.org/',license:'https://www.gnu.org/licenses/gpl-3.0.html'};
   if(!Object.hasOwn(urls,name))throw new Error('Unknown project link.');await shell.openExternal(urls[name]);});
-window.once('ready-to-show',()=>window.show());
+if(!setupSmoke)window.once('ready-to-show',()=>window.show());
 window.on('close',event=>{if(!quitting&&engine.settings.minimizeToTray&&tray){event.preventDefault();window.hide();return;}if(!quitting&&engine.active&&!smoke){const choice=dialog.showMessageBoxSync(window,{type:'question',title:'A download is still running',message:'Stop downloads and close TurboSave?',detail:'Available download parts will be kept. Resume from Activity next time. A stopped conversion may need to start again.',buttons:['Keep downloading','Stop and close'],defaultId:0,cancelId:0});if(choice===0){event.preventDefault();return;}}});
 app.on('window-all-closed',()=>app.quit());
 app.on('before-quit',event=>{if(quitting)return;event.preventDefault();quitting=true;tray?.destroy();tray=null;engine.close().finally(()=>app.quit());});
 await window.loadFile(uiPath);
 try{await mkdir(engine.stateDir,{recursive:true});await engine.youtube.restore();await engine.init();engine.changed();}catch(error){engine.initializing=false;bootError=error.message;window.webContents.send('state:update',{...engine.snapshot(),bootError});}
-if(!smoke&&!workflowTest&&!duplicateSmoke&&!ipcSmoke&&!detailsSmoke&&!reliabilitySmoke&&!experienceSmoke&&!betaSmoke&&!youtubeSmoke){
-  void (async()=>{if(!engine.ready)await updates.repair();await updates.dailyCheck();})().catch(()=>{});
+if(setupSmoke){
+  const neededSetup=updates.needsSetup();
+  let error=null;
+  try{
+    if(neededSetup)await updates.repair();
+    if(!engine.ready)throw Error(engine.engineUpdateWarning||bootError||'Tools unavailable.');
+    for(const name of ['yt-dlp','ffmpeg','ffprobe','node']){
+      if(!engine.tool(name).startsWith(engine.stateDir+path.sep))throw Error('Expected app-managed tool: '+name);
+    }
+    if(neededSetup&&engine.jobs.length===0&&!engine.onboardingComplete){
+      const {rangeSelfTest}=await import('./range-selftest.mjs');
+      await rangeSelfTest(engine);
+    }
+  }catch(problem){error=problem.message;}
+  await writeFile(path.join(engine.stateDir,'setup-report.json'),JSON.stringify({ok:!error,error,neededSetup,version:app.getVersion(),packaged:app.isPackaged,engines:engine.versions,onboardingComplete:engine.onboardingComplete,jobs:engine.jobs.length},null,2));
+  app.quit();
+}else if(!smoke&&!workflowTest&&!duplicateSmoke&&!ipcSmoke&&!detailsSmoke&&!reliabilitySmoke&&!experienceSmoke&&!betaSmoke&&!youtubeSmoke){
+  void (async()=>{if(updates.needsSetup())await updates.repair();await updates.dailyCheck();})().catch(()=>{});
   const daily=setInterval(()=>{void updates.dailyCheck().catch(()=>{});},60*60_000);daily.unref();
 }
 if(youtubeSmoke){

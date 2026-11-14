@@ -40,7 +40,7 @@ export class LocalEngine extends EventEmitter {
     try{const saved=JSON.parse(await readFile(path.join(this.stateDir,'engine-update.json'),'utf8'));if(saved.enabled===false)return;if(!/^\d{4}\.\d{2}\.\d{2}(?:\.\d+)?$/.test(saved.version)||!/^[a-f0-9]{64}$/.test(saved.sha256))throw Error();
       const file=path.join(this.stateDir,'engine-updates',`yt-dlp-${saved.version}.exe`),details=await lstat(file);if(!details.isFile()||details.isSymbolicLink()||details.size>80_000_000)throw Error();
       this.verifier.register(file,saved.sha256);await this.verifier.verify(file);this.ytOverride=file;
-    }catch(error){if(error.code!=='ENOENT')this.engineUpdateWarning='The saved downloader could not be verified. Using the bundled engine.';}
+    }catch(error){if(error.code!=='ENOENT')this.engineUpdateWarning='The saved downloader could not be verified.';}
   }
   async installDownloader(bytes,version,sha256){
     if(!/^\d{4}\.\d{2}\.\d{2}(?:\.\d+)?$/.test(version)||createHash('sha256').update(bytes).digest('hex')!==sha256)throw Error('Invalid engine update.');

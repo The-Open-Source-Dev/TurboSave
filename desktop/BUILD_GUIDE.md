@@ -1,6 +1,6 @@
 # How TurboSave Desktop is built
 
-TurboSave Desktop is a Windows app made with **Electron** and plain HTML, CSS and JavaScript. The app bundles its media tools so users do not need to install Python or provide API keys.
+TurboSave Desktop is a Windows app made with **Electron** and plain HTML, CSS and JavaScript. The packaged app fetches its media tools on first launch. Users need internet for setup.
 
 ## What each part does
 
@@ -56,7 +56,7 @@ Current test builds are unsigned. Generating a build does not publish it to GitH
 
 ## Security builds and verification
 
-`tools:prepare` re-extracts binaries from checksum-verified publisher archives and writes `build-resources/engines-manifest.json`. Review that manifest with lock-file changes; never regenerate trust from arbitrary replacement executables. The packaging hook checks vendor files against it and embeds the manifest inside integrity-checked app.asar. Every build path uses the same production fuse settings.
+`tools:prepare` re-extracts binaries from checksum-verified publisher archives and writes `build-resources/engines-manifest.json`. Review that manifest with lock-file changes. The packaging hook validates the manifest against the lockfile. The manifest is embedded inside integrity-checked app.asar. The build omits `vendor/`. Use `tools:prepare` for source runs and real-engine integration tests.
 
 Run `node scripts/benchmark-tool-verification.mjs` to measure startup hashing and unchanged-tool checks. Run `npm run security:packaged` after building to verify fuses, embedded integrity, environment-injection rejection, engine tampering rejection and modified-ASAR termination. It tests an isolated copy and never mutates the installed app or normal profile. Run the existing beta, details, IPC, reliability and experience smoke scripts against the current portable build too.
 

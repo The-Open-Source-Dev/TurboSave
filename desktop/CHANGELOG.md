@@ -1,5 +1,10 @@
 # Changes
 
+## 0.8.0-beta.6
+
+- Set up download tools on first launch using pinned, checksum-verified publisher downloads. Existing verified versions at or above the tested baseline are reused.
+- Remove standalone engines from the Windows installer and portable package. First launch shows progress and offers Retry setup if a download fails.
+
 ## Updates on the beta.5 source branch
 
 - Warn before downloading when the expected output filename already exists.

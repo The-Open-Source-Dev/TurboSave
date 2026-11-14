@@ -1,6 +1,6 @@
 {
   "name": "turbosave-desktop",
-  "version": "0.8.0-beta.5",
+  "version": "0.8.0-beta.6",
   "description": "A local, open-source media downloader powered by yt-dlp and FFmpeg.",
   "author": "TurboSave contributors",
   "license": "GPL-3.0-only",
@@ -57,14 +57,6 @@
       {
         "from": "build-resources/icon.ico",
         "to": "branding/turbosave.ico"
-      },
-      {
-        "from": "vendor",
-        "to": "tools",
-        "filter": [
-          "**/*",
-          "!downloads/**"
-        ]
       }
     ],
     "win": {

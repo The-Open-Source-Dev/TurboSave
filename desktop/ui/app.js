@@ -28,7 +28,14 @@ batch.after(playlistView);
 $('#view-settings').prepend(template('<article class="settings-card"><div><h2>Quick guide</h2><p>Replay the tutorial without changing your setup.</p></div><button id="settings-guide" type="button" class="quiet">Replay tutorial</button></article>'));
 $('#download-profile option[value="fast"]').textContent='High — up to 8 media fragments';$('#theme option[value="system"]').textContent='Follow device theme';
 $('#engine-update-status').before(template('<label class="setting-check"><input id="daily-engine-checks" type="checkbox" checked> Check engine versions daily</label><p>Checks contact the publishers. Available updates install only when you choose. Missing tools are repaired automatically.</p><div class="about-links"><button id="repair-tools" type="button" class="quiet">Repair missing tools</button><button id="check-all-tools" type="button" class="quiet">Check all engines</button></div><div id="tool-updates"></div>'));
-$('#engine-versions').nextElementSibling.textContent='Tools ship with the app. Verified repairs and updates stay in TurboSave’s own data folder.';
+$('#engine-versions').nextElementSibling.textContent='TurboSave downloads verified tools from their publishers and keeps them in its own data folder.';
+$('#use-bundled-engine').remove();
+const setupDialog=element('dialog','welcome');
+setupDialog.setAttribute('aria-labelledby','setup-title');
+setupDialog.append(template('<h2 id="setup-title">Set up download tools</h2><p>TurboSave checks its tools and downloads verified copies if needed. First-time setup requires internet.</p><p id="setup-status" role="status" aria-live="polite"></p><button id="setup-retry" class="primary" type="button" hidden>Retry setup</button>'));
+document.body.append(setupDialog);
+setupDialog.addEventListener('cancel',event=>event.preventDefault());
+$('#setup-retry').addEventListener('click',()=>action(()=>window.turbo.repairTools()));
 document.body.append(template('<dialog id="tutorial-offer" class="welcome"><h2>Want a quick tour?</h2><p>Three short steps cover downloads, batches and playlists.</p><div class="guide-actions"><button id="tutorial-skip" class="quiet" type="button">Skip</button><button id="tutorial-show" class="primary" type="button">Show tutorial</button></div></dialog><dialog id="source-choice" class="welcome"><h2>Video or playlist?</h2><p>This link includes a playlist. Choose what you want to save.</p><div class="guide-actions"><button id="source-single" class="quiet" type="button">Just this video</button><button id="source-playlist" class="primary" type="button">Preview playlist</button></div></dialog>'));
 const systemTheme=window.matchMedia?.('(prefers-color-scheme: dark)');
 function applyTheme(preference='system'){document.documentElement.dataset.theme=preference==='system'?(systemTheme?.matches?'dark':'light'):preference;$('#theme').value=preference;}
@@ -76,17 +83,71 @@ class Composer{
   renderMedia(){const m=this.media;this.q('media-title').textContent=m.title;this.q('media-platform').textContent=m.platform.toUpperCase();this.q('media-creator').textContent=m.creator?`By ${m.creator}`:'Creator not reported';this.q('media-meta').textContent=new URL(m.source).hostname;this.q('media-duration').textContent=durationText(m.duration);this.q('media-views').textContent=Number.isFinite(m.viewCount)?m.viewCount.toLocaleString():'Not reported';this.q('media-date').textContent=m.uploadDate?new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeZone:'UTC'}).format(new Date(m.uploadDate+'T00:00:00Z')):'Not reported';this.q('media-description').textContent=m.description||'';this.q('media-description').hidden=!m.description;this.q('video-count').textContent=String(m.formats.filter(f=>f.kind==='video').length);this.q('audio-count').textContent=String(m.formats.filter(f=>f.kind==='audio').length);this.setPreview(m.preview);}
   setPreview(preview){const image=this.q('media-thumbnail'),placeholder=this.q('thumbnail-placeholder'),id=this.media?.id;image.hidden=true;placeholder.hidden=false;placeholder.textContent='Preview unavailable';image.removeAttribute('src');image.alt=`Thumbnail for ${this.media?.title||'media'}`;image.onload=()=>{if(this.media?.id===id){image.hidden=false;placeholder.hidden=true;}};image.onerror=()=>{image.hidden=true;placeholder.hidden=false;if(!this.autoPreviewTried){this.autoPreviewTried=true;void this.retryPreview(true);}};if(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(preview||''))image.src=preview;}
   async retryPreview(skipCurrent=false){if(!this.media||this.previewBusy)return;this.previewBusy=true;const id=this.media.id,b=this.root.querySelector('[data-retry-preview]');b.disabled=true;b.textContent='Loading…';try{const result=await window.turbo.retryPreview({id,skipCurrent});if(this.media?.id===id){this.media.preview=result.preview;this.setPreview(result.preview);}}catch(error){this.message(error.message,true);}finally{this.previewBusy=false;b.disabled=false;b.textContent='Retry preview';}}
-  async quickDuplicate(){if(!this.media||this.busy||this.submitting)return;const b=this.q('quick-duplicate'),status=this.q('quick-duplicate-status');b.disabled=true;b.textContent='Checking short samples…';status.hidden=false;status.textContent='Downloading five small temporary samples on this PC…';try{const result=await window.turbo.quickDuplicate({mediaId:this.media.id,formatId:this.q('format').value,directory:this.directory});status.textContent=result.matches?.length?`Possible saved copy: ${result.matches[0].name}. ${result.message}`:result.message;}finally{b.textContent='Quick visual duplicate check';this.sync();}}
+  async quickDuplicate(){
+    if(!this.media||this.busy||this.submitting)return;
+    const button=this.q('quick-duplicate'),status=this.q('quick-duplicate-status');
+    const mediaId=this.media.id,formatId=this.q('format').value,directory=this.directory;
+    button.disabled=true;
+    button.textContent='Checking short samples…';
+    status.hidden=false;
+    status.textContent='Downloading temporary video samples…';
+    let text;
+    try{
+      const result=await window.turbo.quickDuplicate({mediaId,formatId,directory});
+      text=result.matches?.length?`Possible saved copy: ${result.matches[0].name}. ${result.message}`:result.message;
+    }finally{
+      button.textContent='Quick visual duplicate check';
+      this.sync();
+    }
+    if(this.media?.id===mediaId&&this.q('format').value===formatId&&this.directory===directory){
+      status.textContent=text;
+      status.hidden=false;
+    }
+  }
   renderFormats(){const m=this.media;this.root.querySelectorAll('[data-kind]').forEach(b=>{b.setAttribute('aria-selected',String(b.dataset.kind===this.kind));b.disabled=b.dataset.kind==='image'?!m.thumbnail:!m.formats.some(f=>f.kind===b.dataset.kind);});const tabs=this.q('sound-tabs');tabs.replaceChildren();tabs.hidden=this.kind!=='video';if(this.kind==='video')for(const sound of ['with','without','unknown'])if(m.formats.some(f=>f.kind==='video'&&f.sound===sound)){const b=button({with:'With sound',without:'Without sound',unknown:'Sound not specified'}[sound],()=>{this.sound=sound;this.renderFormats();});b.setAttribute('role','tab');b.setAttribute('aria-selected',String(this.sound===sound));tabs.append(b);}this.q('format').replaceChildren();for(const f of this.formats()){const option=element('option',null,`${f.quality} · ${f.extension.toUpperCase()} · ${fileSize(f)}${f.mode==='merge'?' · Video + audio':''}${f.mode==='mp3'?' · Converted MP3':''}`);option.value=f.id;this.q('format').append(option);}this.selectionNote();this.sync();}
   selectionNote(){const f=this.formats().find(f=>f.id===this.q('format').value);this.q('format-badge').textContent=f?.extension.toUpperCase()||'—';this.q('format-note').textContent=!f?'No format is available.':f.mode==='merge'?'Video and audio combine locally. Temporary tracks are removed after the file is saved.':f.mode==='mp3'?'Converts locally to MP3 at 192 kbps.':f.kind==='image'?'Saves the source thumbnail as JPEG.':f.sound==='without'?'Video without sound.':f.sound==='unknown'?'The source has not reported whether this includes sound.':'Original source quality.';this.q('storage-label').textContent=f?.filesize&&!f.sizeEstimate?'Reported file size':'Estimated file size';this.q('storage-size').textContent=fileSize(f);this.q('storage-detail').textContent=f?.filesize?'Allow extra free space for temporary processing.':'The source has not provided a size estimate.';this.q('quick-duplicate-status').hidden=true;const normalize=folder=>String(folder||'').replaceAll('/','\\').replace(/[\\]+$/,'').toLowerCase();const match=this.media?.duplicates?.find(m=>m.kind===this.kind&&normalize(m.directory)===normalize(this.directory));this.q('duplicate-notice').hidden=!match;this.q('duplicate-notice').textContent=match?`Already saved here: ${match.name}. You’ll be asked before saving another copy.`:'';}
-  async add(){if(!this.media||this.busy||this.submitting)return;this.submitting=true;this.sync();const selection={mediaId:this.media.id,formatId:this.q('format').value,directory:this.directory},add=this.bulk?value=>window.turbo.addDraft(value):value=>window.turbo.download(value);try{let added=true,nameConflict=false;try{await add(selection);}catch(error){if(!['DUPLICATE_MEDIA','OUTPUT_NAME_CONFLICT'].includes(error.code))throw error;nameConflict=error.code==='OUTPUT_NAME_CONFLICT';added=await confirmDuplicate(error.duplicates||[],{nameConflict});if(added)await add({...selection,...(nameConflict?{allowOutputCollision:true}:{allowDuplicate:true})});}if(this.bulk){this.media=null;this.q('result').hidden=true;this.q('source-url').value='';this.message(added?'Added to your batch. Paste the next link, or start below.':nameConflict?'Cancelled. No download was added.':'Kept the existing file. Paste the next link.');}else{notify(added?'Added to Downloads.':nameConflict?'Download cancelled.':'Kept the existing file.');if(added)view('activity');}}finally{this.submitting=false;this.sync();renderDrafts();if(this.bulk)this.q('source-url').focus();}}
+  async add(){
+    if(!this.media||this.busy||this.submitting)return;
+    this.submitting=true;
+    this.sync();
+    const selection={mediaId:this.media.id,formatId:this.q('format').value,directory:this.directory};
+    const add=this.bulk?window.turbo.addDraft:window.turbo.download;
+    try{
+      for(;;){
+        try{await add(selection);break;}
+        catch(error){
+          const flag={DUPLICATE_MEDIA:'allowDuplicate',OUTPUT_NAME_CONFLICT:'allowOutputCollision'}[error.code];
+          if(!flag||selection[flag])throw error;
+          if(!await confirmDuplicate(error.duplicates||[],{nameConflict:flag==='allowOutputCollision'})){
+            this.message('Cancelled. No download was added.');
+            return;
+          }
+          selection[flag]=true;
+        }
+      }
+      if(this.bulk){
+        this.media=null;
+        this.q('result').hidden=true;
+        this.q('source-url').value='';
+        this.message('Added to your batch. Paste the next link, or start below.');
+      }else{
+        notify('Added to Downloads.');
+        view('activity');
+      }
+    }finally{
+      this.submitting=false;
+      this.sync();
+      renderDrafts();
+      if(this.bulk)this.q('source-url').focus();
+    }
+  }
 }
 const composers={download:new Composer(single,'',false),bulk:new Composer(batch,'batch-',true)};
 function message(text,error=false){composers[workflow==='bulk'?'bulk':'download'].message(text,error);}
 let batchStarting=false,draftKey='';
 function renderDrafts(){const drafts=[...(state?.jobs||[])].filter(j=>j.status==='draft').sort((a,b)=>(a.queueOrder||0)-(b.queueOrder||0)||a.createdAt-b.createdAt);$('#batch-count').textContent=String(drafts.length);$('#batch-total').textContent=String(drafts.length);$('#batch-empty').hidden=!!drafts.length;$('#start-batch').disabled=!drafts.length||batchStarting||!state?.ready;const key=JSON.stringify(drafts.map(j=>[j.id,j.directory,j.formatLabel]));if(key===draftKey)return;draftKey=key;$('#draft-list').replaceChildren();for(const [index,job]of drafts.entries()){const card=element('article','draft-card'),copy=element('div','draft-copy'),controls=element('div','job-controls');copy.append(element('h3',null,job.title),element('p','draft-quality',`${job.formatLabel} · ${fileSize({filesize:job.estimatedBytes,sizeEstimate:job.sizeEstimate})}`),element('p','draft-source',job.source),element('p',null,`Save to: ${job.directory}`));for(const [label,direction]of [['↑','up'],['↓','down']])controls.append(button(label,()=>window.turbo.move(job.id,direction)));controls.append(button('Folder',async()=>{const choice=await window.turbo.chooseFolder({directory:job.directory,makeDefault:false});if(choice.changed)await window.turbo.updateDraft({id:job.id,directory:choice.directory});}));const remove=button('Remove',()=>window.turbo.removeDraft(job.id));remove.setAttribute('aria-label',`Remove ${job.title} from batch`);controls.append(remove);card.append(element('span','draft-number',String(index+1)),copy,controls);$('#draft-list').append(card);}}
 $('#start-batch').addEventListener('click',()=>action(async()=>{if(batchStarting)return;batchStarting=true;renderDrafts();try{await window.turbo.startBatch();view('activity');}finally{batchStarting=false;renderDrafts();}}));
-function renderWelcome(){const dialog=$('#welcome');$('#welcome-folder').textContent=state?.downloadsDir||'';$('#welcome-choose').disabled=welcomeBusy||!!state?.initializing;$('#welcome-continue').disabled=welcomeBusy||!!state?.initializing;if(!state?.initializing&&state?.onboardingComplete===false&&!dialog.open){dialog.showModal();$('#welcome-title').focus();}else if(state?.onboardingComplete&&dialog.open)dialog.close();}
+function renderWelcome(){const dialog=$('#welcome');$('#welcome-folder').textContent=state?.downloadsDir||'';$('#welcome-choose').disabled=welcomeBusy||!!state?.initializing;$('#welcome-continue').disabled=welcomeBusy||!!state?.initializing;if(state?.ready&&state?.onboardingComplete===false&&!dialog.open){dialog.showModal();$('#welcome-title').focus();}else if((state?.onboardingComplete||!state?.ready)&&dialog.open)dialog.close();}
 $('#welcome').addEventListener('cancel',event=>event.preventDefault());
 async function welcomeAction(work){if(welcomeBusy)return;welcomeBusy=true;$('#welcome-error').hidden=true;renderWelcome();try{await work();}catch(error){$('#welcome-error').textContent=error.message;$('#welcome-error').hidden=false;}finally{welcomeBusy=false;renderWelcome();}}
 $('#welcome-choose').addEventListener('click',()=>welcomeAction(()=>window.turbo.chooseFolder()));
@@ -159,7 +220,7 @@ function renderToolUpdates(){
   const target=$('#tool-updates');target.replaceChildren();
   for(const kind of ['ffmpeg','node']){
     const result=state.engineUpdates?.results?.find(r=>r.kind===kind),row=element('div','engine-row'),copy=element('span',null,result?.error||`${kind}: ${result?.latest?'latest '+result.latest:'No update check yet'}`);
-    row.append(copy,button(`Install ${kind} update`,async()=>{const info=await window.turbo.installTool(kind);notify(info.message);}),button('Use bundled',()=>window.turbo.rollbackTool(kind)));target.append(row);
+    row.append(copy,button(`Install ${kind} update`,async()=>{const info=await window.turbo.installTool(kind);notify(info.message);}));target.append(row);
   }
 }
 let youtubeBusy=false,youtubeError='';
@@ -171,13 +232,18 @@ $('#youtube-dialog').addEventListener('cancel',event=>{if(youtubeBusy)event.prev
 $('#youtube-open').addEventListener('click',()=>youtubeAction(async()=>{await window.turbo.openYouTube($('#youtube-profile').value);$('#youtube-dialog-status').textContent='Complete sign-in or verification in Firefox. Then return here.';}));
 $('#youtube-remember').addEventListener('click',()=>youtubeAction(async()=>{const result=await window.turbo.connectYouTube($('#youtube-profile').value);if(result.cancelled){$('#youtube-dialog-status').textContent='Permission cancelled. No session was copied.';return;}state.youtube=result;$('#youtube-dialog').close();notify('YouTube session remembered. Retry the video or resume the playlist.');}));
 $('#youtube-disconnect').addEventListener('click',()=>youtubeAction(async()=>{state.youtube=await window.turbo.disconnectYouTube();notify('YouTube session removed from TurboSave. Firefox stays signed in.');}));
-function update(value){const wasInitializing=state?.initializing,previousDefault=state?.downloadsDir;state={...state,...value};
+function update(value){const wasSettingUp=state&&(state.initializing||state.maintenance||!state.ready),previousDefault=state?.downloadsDir;state={...state,...value};
   for(const c of Object.values(composers)){if(c.directory===previousDefault&&!c.media)c.directory=state.downloadsDir;c.sync();}
   $('#settings-folder').textContent=state.downloadsDir;$('#engine-status').textContent=state.maintenance?'UPDATING':state.ready?'READY':state.initializing?'CHECKING…':'NEEDS ATTENTION';$('#version').textContent=state.version||'0.8.0-beta.1';
   const p=state.settings||{};applyTheme(p.theme||'system');$('#download-profile').value=p.downloadProfile||'fast';$('#speed-limit').value=String(p.speedLimit||0);$('#daily-engine-checks').checked=p.dailyEngineChecks!==false;$('#minimize-tray').checked=p.minimizeToTray===true;$('#completion-notifications').checked=p.notifications===true;
   if(state.engineUpdateWarning||state.toolStatus)$('#engine-update-status').textContent=state.toolStatus||state.engineUpdateWarning;
   const engines=$('#engine-versions');engines.replaceChildren();for(const [name,version]of Object.entries(state.versions||{})){const row=element('div','engine-row');row.append(element('b',null,name),element('span',null,version));engines.append(row);}
-  if(state.initializing)message('Checking the bundled local engines…');else if(state.maintenance)message(state.toolStatus||'Updating local engines…');else if(!state.ready)message(state.bootError||'Local engines need attention. Open Settings to retry repair.',true);else if(wasInitializing)message('');
+  const settingUp=state.initializing||!state.ready&&!state.onboardingComplete||!!state.toolStatus&&!state.ready;
+  $('#setup-status').textContent=state.toolStatus||state.bootError||state.engineUpdateWarning||'Checking download tools…';
+  $('#setup-retry').hidden=!!(state.initializing||state.maintenance||state.bootError);
+  if(settingUp&&!setupDialog.open)setupDialog.showModal();
+  if(!settingUp&&setupDialog.open)setupDialog.close();
+  if(state.initializing)message('Checking download tools…');else if(state.maintenance)message(state.toolStatus||'Updating download tools…');else if(!state.ready)message(state.bootError||state.engineUpdateWarning||'Open Settings to retry setup.',true);else if(wasSettingUp)message('');
   renderJobs();renderDrafts();renderWelcome();renderPlaylistGroups();renderToolUpdates();renderYouTube();playlistSelection();$('#playlist-folder').textContent=playlistState.directory||state.downloadsDir||'';$('#playlist-fetch').disabled=playlistState.busy||!state.ready||!state.onboardingComplete;
 }
 window.turbo.subscribe(update);window.turbo.state().then(update).catch(error=>message(error.message,true));
@@ -187,7 +253,6 @@ for(const [id,key,type]of [['theme','theme','value'],['download-profile','downlo
 async function updateAction(control,statusId,work){control.disabled=true;$('#'+statusId).textContent='Checking…';try{await work();}catch(error){$('#'+statusId).textContent=error.message;}finally{if(control.id!=='install-engine-update')control.disabled=false;}}
 $('#check-engine-update').addEventListener('click',event=>updateAction(event.currentTarget,'engine-update-status',async()=>{const info=await window.turbo.checkUpdates('yt-dlp');$('#engine-update-status').textContent=info.available?`yt-dlp ${info.latest} is available (current: ${info.current}).`:`No newer stable release found. Current: ${info.current}.`;$('#install-engine-update').disabled=!info.available;}));
 $('#install-engine-update').addEventListener('click',event=>updateAction(event.currentTarget,'engine-update-status',async()=>{const info=await window.turbo.installEngine();$('#engine-update-status').textContent=info.message;$('#install-engine-update').disabled=true;}));
-$('#use-bundled-engine').addEventListener('click',event=>updateAction(event.currentTarget,'engine-update-status',async()=>{await window.turbo.useBundledEngine();$('#engine-update-status').textContent='Using the bundled downloader.';}));
 $('#check-app-update').addEventListener('click',event=>updateAction(event.currentTarget,'app-update-status',async()=>{const info=await window.turbo.checkUpdates('app');$('#app-update-status').textContent=info.available?`TurboSave ${info.latest} is available. Open its release page to download.`:info.message||`No newer Windows release found. Current: ${info.current}.`;$('#open-app-release').disabled=!info.available;}));
 $('#open-app-release').addEventListener('click',()=>action(()=>window.turbo.openAppRelease()));
 $('#export-diagnostics').addEventListener('click',event=>updateAction(event.currentTarget,'diagnostics-status',async()=>{const result=await window.turbo.exportDiagnostics();$('#diagnostics-status').textContent=result.saved?'Diagnostics saved on this PC.':'Export cancelled.';}));

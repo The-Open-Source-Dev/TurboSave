@@ -2,7 +2,7 @@
 
 Free, open-source video downloads on Windows 10/11 x64. Built with Electron, yt-dlp and FFmpeg.
 
-**Publication status:** Desktop source version 0.8.0-beta.5 is included in the combined TurboSave repository. Public binary distribution still requires matching-source coverage for bundled third-party dependencies. See [dependency source status](DEPENDENCY_SOURCES.md) and [release readiness](RELEASE_READINESS.md).
+**Windows 0.8.0-beta.6:** First launch checks TurboSave's download tools and fetches the tested versions if needed. Internet is required for the first setup. Existing verified tools at or above the tested versions are reused. See [dependency source status](DEPENDENCY_SOURCES.md).
 
 [Releases](https://github.com/chanthupaa/TurboSave/releases) · [Report a bug](https://github.com/chanthupaa/TurboSave/issues) · [Report a vulnerability privately](https://github.com/chanthupaa/TurboSave/security/advisories/new)
 
@@ -41,14 +41,14 @@ Free, open-source downloads on your computer. Windows 10/11 x64; unsigned beta.
 - Playlist selections persist separately from the 20-item working queue. Groups restore paused after restart; resume them explicitly. Failed/unavailable entries are reported while remaining entries continue. Cancel stops future entries; it does not delete completed files.
 - Previews try up to four source-provided HTTPS candidates within a bounded deadline. **Retry preview** is available; an unavailable thumbnail does not prevent format selection. Dark source artwork is not treated as an error.
 - Fresh profiles use **Follow device theme**, **High** (eight media fragments when supported) and **Unlimited** speed. Upgrades retain saved preferences.
-- Tools ship with the app. Missing tools are automatically repaired into the app data directory; the publishers are checked at most daily, unless disabled in Settings. Available updates install only on request. yt-dlp, FFmpeg/FFprobe and Node updates are checksum/version verified, and bundled rollback is available. An offline healthy installation continues working.
+- First launch downloads missing or outdated tools into the app data directory. Publisher update checks can be disabled in Settings. Available upgrades install on request. An offline installation with healthy tools continues working.
 - Onboarding confirms your folder, then offers a short optional guide. Replay it from Settings anytime.
 
 Temporary parts remain in ownership-marked job folders for safe resume and cleanup. Final output uses exclusive same-volume linking where available, falling back to an exclusive copy; existing files are never overwritten. A paused job intentionally retains parts. Cleanup warnings identify folders that Windows still has locked.
 
 Run `npm test`, `npm run build`, then `node scripts/beta-smoke.mjs`. Packaged acceptance reports and screenshots are under `artifacts/`. See `RELEASE_READINESS.md`, `DEPENDENCY_SOURCES.md` and `BETA_RELEASE.md` before public distribution. Building the beta does not upgrade the installed app.
 
-A Windows desktop app that saves public media **on your PC**, using bundled yt-dlp and FFmpeg. No downloader API key, account, VPS or Python installation is required.
+A Windows desktop app that saves public media **on your PC**, using yt-dlp and FFmpeg from their publishers. No downloader API key, account, VPS or separate Python installation is required.
 
 ## Use
 
@@ -75,7 +75,7 @@ Settings offers a speed limit for new or resumed downloads. Pause/resume an acti
 
 ## Updates and signed releases
 
-Engine metadata checks run at most daily by default and can be disabled or triggered manually. Downloader checks use the official `yt-dlp/yt-dlp` stable release feed. An installed update must match the official SHA-256 manifest, pass its version check and is stored separately from the bundled engines. Its hash is checked again at startup. **Use bundled engine** provides rollback; downloads/source checks must be idle while switching engines. Checksum verification is not a claim of an Authenticode or GPG signature.
+Engine metadata checks run at most daily by default and can be disabled or triggered manually. Downloader checks use the official `yt-dlp/yt-dlp` stable release feed. Installed updates must match the publisher checksum and pass a version check. Their hashes are checked again at startup. Downloads and source checks must be idle during an engine update.
 
 App update checks need the public **desktop** GitHub release repository, entered as `owner/repository`. No desktop repository has been configured by this task. The app compares its version with the latest release and opens that repository's release downloads; it does not silently download or execute desktop installers. GitHub/network errors are reported without claiming the app is up to date.
 
@@ -149,7 +149,7 @@ For an MP4 **With sound** download, only the finished MP4 is saved. Separate vid
 
 TurboSave's original code is **GPL-3.0-only**; see `LICENSE`. Keep the license and notices, disclose changes, and provide the complete corresponding source when distributing covered binaries. Commercial use is allowed. Merely using the app does not require publishing your private files or private edits.
 
-The bundled tools have separate notices and source requirements. Read `THIRD_PARTY_NOTICES.md` before redistributing an installer. The source archive for TurboSave itself is not a complete corresponding-source bundle for every bundled dependency. Public release must include the required dependency sources/build instructions too. Do not claim a public binary release is license-complete until that bundle has been checked.
+The installer ships Electron and its notices. The external media tools are fetched from their publishers during setup. Include the matching TurboSave source when publishing, and see `THIRD_PARTY_NOTICES.md` for upstream projects and license information.
 
 Only save media you own, have permission to download, or that the source explicitly permits you to save.
 # Version 0.7.0: a clearer workspace

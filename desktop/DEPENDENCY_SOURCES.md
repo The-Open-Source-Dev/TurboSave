@@ -1,5 +1,11 @@
 # Dependency source and redistribution review
 
+## Windows beta.6
+
+This installer includes TurboSave and the Electron runtime with its upstream license files. It excludes the standalone yt-dlp, FFmpeg, FFprobe and Node.js executables. TurboSave retrieves these tools directly from their publishers using URLs and SHA-256 values recorded in `engines.lock.json` and the packaged manifest. Publish the exact matching TurboSave source and build instructions with the installer. Keep Electron and Chromium notices alongside the binary in the package.
+
+The review below describes the earlier bundled beta.5 package.
+
 The exact original-code source archive, lockfile and build scripts accompany this candidate. This does **not** by itself establish complete corresponding-source coverage for all bundled software.
 
 | Component | Pinned build / evidence | Source and follow-up |

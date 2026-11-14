@@ -1,5 +1,36 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createHash} from 'node:crypto';
 import {UpdateService,newer,checksumFor,githubBytes,desktopRepo} from '../src/updates.mjs';
+import manifest from '../build-resources/engines-manifest.json' with {type:'json'};
+
+test('first-launch setup uses pinned providers, retries a missing pair and keeps healthy tools',async()=>{
+  const {yt,ff,node}=manifest.publishers;
+  const visited=[];
+  let offline=true;
+  const engine={versions:{'yt-dlp':yt.version,ffmpeg:'ffmpeg version 8.0',ffprobe:'Not available',node:node.version},
+    assertIdleForUpdate(){},changed(){},pump(){},
+    toolStore:{async install(kind,bytes,record){
+      assert.equal(kind,'ffmpeg');
+      assert.deepEqual(record,ff);
+      assert.equal(bytes.toString(),'test archive');
+      engine.versions.ffmpeg='ffmpeg version '+ff.version;
+      engine.versions.ffprobe='ffprobe version '+ff.version;
+    }}};
+  const service=new UpdateService({engine,read:async url=>{
+    visited.push(url);
+    if(offline)throw Error('offline');
+    return Buffer.from('test archive');
+  }});
+  assert.equal(service.needsSetup(),true);
+  await service.repair();
+  assert.equal(engine.ready,false);
+  assert.match(engine.engineUpdateWarning,/Retry setup/);
+  offline=false;
+  await service.repair();
+  assert.equal(engine.ready,true);
+  assert.equal(service.needsSetup(),false);
+  await service.repair();
+  assert.deepEqual(visited,[ff.url,ff.url]);
+});
 
 test('desktop update discovery selects a newer installable Windows release only',async()=>{
  const asset=(version,tag,type='setup')=>({name:`TurboSave-Desktop-${version}-${type}.exe`,size:100,browser_download_url:`https://github.com/${desktopRepo}/releases/download/${tag}/TurboSave-Desktop-${version}-${type}.exe`});

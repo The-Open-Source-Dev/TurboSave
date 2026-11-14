@@ -20,7 +20,7 @@ export class ToolStore{
         e.verifier.register(file,expected.sha256);await e.verifier.verify(file);
       }
       this.records[kind]=record;for(const name of names[kind])e.toolOverrides[name]=path.join(dir,name+'.exe');
-    }catch{e.engineUpdateWarning='A saved tool failed verification. Using the bundled tools.';}
+    }catch{e.engineUpdateWarning='A saved tool failed verification.';}
   }
   async install(kind,bytes,{version,sha256}){
     if(!names[kind]||!/^[\w.+-]{1,80}$/.test(version)||hash(bytes)!==sha256)throw Error('Tool archive verification failed.');

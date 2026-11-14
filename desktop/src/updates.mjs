@@ -1,8 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import https from 'node:https';import {createHash} from 'node:crypto';import {publicTarget} from './media.mjs';
 import {readFile,writeFile} from 'node:fs/promises';import path from 'node:path';
+import manifest from '../build-resources/engines-manifest.json' with {type:'json'};
 const hosts=new Set(['api.github.com','github.com','release-assets.githubusercontent.com','objects.githubusercontent.com','nodejs.org']);
 export const desktopRepo='chanthupaa/TurboSave';
+const {yt,ff,node}=manifest.publishers;
+const setupTools=[['yt-dlp',yt],['ffmpeg',ff],['node',node]];
+function needsVersion(reported,minimum){
+  const version=reported?.match(/(?:^|version )v?(\d+(?:\.\d+){1,3})/)?.[1];
+  return !version||newer(minimum,version);
+}
 export function newer(latest,current){
   const parse=value=>{const match=String(value).replace(/^v/,'').match(/^(\d+)\.(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-beta\.(\d+))?$/);return match&&{parts:match.slice(1,5).map(v=>Number(v||0)),beta:match[5]===undefined?null:Number(match[5])};};
   const a=parse(latest),b=parse(current);if(!a||!b)return false;
@@ -90,11 +97,40 @@ export class UpdateService{
     }finally{this.busy=false;this.engine.maintenance=false;this.engine.toolStatus=null;this.engine.changed();void this.engine.pump();}
   }
   async repair(){
-    if(this.repairing)return;this.repairing=true;
-    try{for(const kind of ['yt-dlp','ffmpeg','node'])if(this.engine.versions[kind]==='Not available'||kind==='ffmpeg'&&this.engine.versions.ffprobe==='Not available')await this.installTool(kind,{force:true});
-      this.engine.ready=Object.values(this.engine.versions).length===4&&Object.values(this.engine.versions).every(v=>v!=='Not available');this.engine.engineUpdateWarning=null;
-    }catch{this.engine.engineUpdateWarning='Automatic repair could not finish. Check your connection, then choose Repair missing tools in Settings.';}
-    finally{this.repairing=false;this.engine.changed();}
+    if(this.repairing||this.engine.initializing||this.engine.closing||!this.engine.versions)return;
+    const engine=this.engine;
+    if(this.busy)throw Error('A tool update is already running.');
+    engine.assertIdleForUpdate();
+    this.repairing=this.busy=engine.maintenance=true;
+    engine.ready=false;
+    let current;
+    try{
+      for(const [kind,record] of setupTools){
+        if(!needsVersion(engine.versions[kind],record.version)&&!(kind==='ffmpeg'&&needsVersion(engine.versions.ffprobe,record.version)))continue;
+        current=kind;
+        engine.toolStatus=`Downloading and verifying ${kind} ${record.version}…`;
+        engine.changed();
+        const bytes=await this.read(record.url,{limit:kind==='yt-dlp'?80_000_000:300_000_000,signal:AbortSignal.timeout(300_000)});
+        if(kind==='yt-dlp'){
+          if(bytes.toString('ascii',0,2)!=='MZ')throw Error('Invalid Windows downloader.');
+          await engine.installDownloader(bytes,record.version,record.sha256);
+        }else{
+          await engine.toolStore.install(kind,bytes,record);
+        }
+      }
+      engine.ready=!engine.closing;
+      engine.engineUpdateWarning=null;
+    }catch{
+      engine.engineUpdateWarning=`Setup could not finish for ${current||'the download tools'}. Check your connection and choose Retry setup.`;
+    }finally{
+      this.repairing=this.busy=engine.maintenance=false;
+      engine.toolStatus=null;
+      engine.changed();
+      void engine.pump();
+    }
+  }
+  needsSetup(){
+    return [...setupTools,['ffprobe',ff]].some(([name,record])=>needsVersion(this.engine.versions?.[name],record.version));
   }
   async rollback(kind){
     if(kind==='yt-dlp')return this.engine.useBundledDownloader();

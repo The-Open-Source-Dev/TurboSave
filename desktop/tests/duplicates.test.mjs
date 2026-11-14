@@ -59,7 +59,7 @@ test('Save another copy never overwrites the original even when the output filen
   const {engine}=await engineFixture();const original=path.join(engine.downloadsDir,'Test video - 720p.mp4');await writeFile(original,'fixture-video');await engine.library.record(original,{keys:engine.media.get('m').keys,kind:'video'});
   engine.library.signature=async()=>null;
   engine.run=async(binary,args)=>{if(args.includes('--output')){await writeFile(args[args.indexOf('--output')+1].replace('%(ext)s','mp4'),'fixture-video');return '';}return JSON.stringify({streams:[{codec_type:'video'},{codec_type:'audio'}]});};
-  const id=await engine.enqueue({mediaId:'m',formatId:'0',rightsConfirmed:true,allowDuplicate:true});await until(()=>engine.jobs.find(j=>j.id===id).status==='completed'&&engine.active===null);
+  const id=await engine.enqueue({mediaId:'m',formatId:'0',rightsConfirmed:true,allowDuplicate:true,allowOutputCollision:true});await until(()=>engine.jobs.find(j=>j.id===id).status==='completed'&&engine.active===null);
   assert.equal(await readFile(original,'utf8'),'fixture-video');assert.notEqual(engine.jobs[0].filePath,original);assert.match(engine.jobs[0].filePath,/\(2\)\.mp4$/);await engine.close();
 });
 test('real FFmpeg recognises a resized re-encode but not a different video with the same filename',{timeout:120_000,skip:existsSync(path.resolve('vendor/bin/ffmpeg.exe'))?false:'Run tools:prepare for bundled-engine integration checks'},async()=>{
