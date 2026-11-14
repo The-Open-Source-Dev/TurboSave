@@ -3,6 +3,7 @@
 **/vendor/
 **/release/
 **/release-final/
+**/release-upload/
 **/artifacts/
 **/build/
 **/.dart_tool/
